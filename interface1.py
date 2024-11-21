@@ -1,0 +1,203 @@
+import streamlit as st
+from part1 import central_tendency, quantiles, missing_unique
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from shapely.geometry import Point
+from pathlib import Path
+
+# Fonction de chargement des données avec cache
+@st.cache_data
+def load_data(uploaded_file):
+    data = pd.read_csv(uploaded_file)
+    # Optimisation des types de données pour gagner de la mémoire
+    for col in data.select_dtypes(include=["float64"]).columns:
+        data[col] = data[col].astype("float32")
+    for col in data.select_dtypes(include=["int64"]).columns:
+        data[col] = data[col].astype("int32")
+    return data
+
+def main():
+    # Titre principal
+    st.title("Projet Data Mining")
+    st.sidebar.title("Navigation")
+
+    # === Partie 1 : Importation et manipulation des données ===
+    st.header("1. Importation et Manipulation des Données")
+
+    # Importer un fichier CSV
+    uploaded_file = st.file_uploader("Importer un fichier CSV", type=["csv"])
+
+    # Charger les données une seule fois dans `st.session_state`
+    if uploaded_file:
+        if "data" not in st.session_state:
+            st.session_state["data"] = load_data(uploaded_file)
+            st.success("Données chargées avec succès.")
+
+    # Vérifier si les données sont dans `session_state`
+    if "data" in st.session_state:
+        data = st.session_state["data"]
+
+        st.subheader("Aperçu des Données")
+        st.dataframe(data.head(100))  # Limitation de l'affichage à 100 lignes
+
+        # Bouton pour sauvegarder les données modifiées
+        if st.button("Télécharger les données actuelles"):
+            st.download_button(
+                label="Télécharger CSV",
+                data=data.to_csv(index=False).encode('utf-8'),
+                file_name="dataset_modifié.csv",
+                mime="text/csv",
+            )
+
+        # Modification/Suppression d'instances
+        st.subheader("Modifier ou Supprimer des Instances")
+        row_idx = st.number_input("Indice de la ligne à modifier/supprimer", min_value=0, max_value=len(data) - 1, step=1)
+        action = st.selectbox("Action", ["Modifier", "Supprimer"])
+
+        if action == "Modifier":
+            col_name = st.selectbox("Choisir une colonne à modifier", data.columns)
+            new_value = st.text_input("Nouvelle valeur")
+            if st.button("Appliquer la modification"):
+                data.at[row_idx, col_name] = new_value
+                st.session_state["data"] = data  # Mettre à jour les données dans session_state
+                st.success("Modification appliquée.")
+                st.dataframe(data.head(100))
+        elif action == "Supprimer":
+            if st.button("Supprimer la ligne"):
+                data = data.drop(index=row_idx).reset_index(drop=True)
+                st.session_state["data"] = data  # Mettre à jour les données
+                st.success("Ligne supprimée.")
+                st.dataframe(data.head(100))
+
+    # === Partie 2 : Description globale ===
+    if "data" in st.session_state:
+        st.header("2. Description Globale du Dataset")
+
+        st.write(f"**Dimensions**: {data.shape[0]} lignes, {data.shape[1]} colonnes")
+        st.subheader("Statistiques Descriptives")
+        st.write(data.describe())
+        st.subheader("Valeurs Manquantes")
+        st.write(data.isnull().sum())
+        st.subheader("Valeurs Uniques")
+        st.write(data.nunique())
+
+    # === Partie 3 : Analyse des Attributs ===
+    if "data" in st.session_state:
+        st.header("3. Analyse des Attributs")
+
+        # Sélectionner une colonne pour l'analyse
+        selected_col = st.selectbox("Choisir une colonne numérique pour l'analyse", data.select_dtypes(include=[float, int]).columns)
+
+        # Infos générales
+        if st.checkbox("Afficher les infos générales"):
+            st.markdown("### **Infos Générales sur la Colonne**")
+            col1, col2 = st.columns(2)
+
+            # Calcul des statistiques générales
+            std_dev = data[selected_col].std()  # Écart-type
+            variance = data[selected_col].var()  # Variance
+            missing_values = data[selected_col].isnull().sum()  # Valeurs manquantes
+            unique_values = data[selected_col].nunique()  # Valeurs uniques
+
+            # Affichage dans deux colonnes
+            with col1:
+                st.metric(label="Écart-type", value=f"{std_dev:.2f}")
+                st.metric(label="Variance", value=f"{variance:.2f}")
+            with col2:
+                st.metric(label="Valeurs manquantes", value=f"{missing_values}")
+                st.metric(label="Valeurs uniques", value=f"{unique_values}")
+
+            st.markdown("### **Mesures de Tendance Centrale**")
+            mean, median, mode, symetric = central_tendency(data, selected_col)
+
+            # Vérification et formatage du mode
+            if isinstance(mode, pd.Series) or isinstance(mode, list):
+                mode_value = ", ".join([f"{m:.2f}" for m in mode])  # Affiche tous les modes formatés
+            else:
+                mode_value = f"{mode:.2f}"
+
+            # Utilisation de colonnes pour une meilleure présentation
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric(label="Moyenne", value=f"{mean:.2f}")
+            with col2:
+                st.metric(label="Médiane", value=f"{median:.2f}")
+            with col3:
+                st.metric(label="Mode", value=mode_value)
+            with col4:
+                st.metric(label="Symétrie", value="Oui" if symetric else "Non")
+
+            st.markdown("### **Mesures de Dispersion et Outliers**")
+
+            # Calcul des quantiles et des bornes
+            q, lower, upper, quantile_att = quantiles(data, selected_col)
+
+            # Vérification et formatage des quantiles si c'est une liste ou une série
+            if isinstance(q, (pd.Series, list, np.ndarray)):
+                q_formatted = ", ".join([f"{val:.2f}" for val in q])
+            else:
+                q_formatted = f"{q:.2f}"
+
+            # Création d'un tableau pour les quantiles
+            quantile_table = pd.DataFrame(
+                {
+                    "Quantile": ["Min", "1er Quartile", "Médiane", "3e Quartile", "Max"],
+                    "Valeur": [f"{val:.2f}" for val in q]
+                }
+            )
+
+            # Affichage du tableau des quantiles
+            st.markdown("#### **Tableau des Quantiles**")
+            st.table(quantile_table)
+
+            # Affichage stylisé des quantiles et bornes
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="Borne Inférieure", value=f"{lower:.2f}")
+            with col2:
+                st.metric(label="Borne Supérieure", value=f"{upper:.2f}")
+
+            # Affichage des valeurs aberrantes
+            st.markdown("#### **Valeurs Aberrantes**")
+            outliers = quantile_att
+
+            if not outliers.empty:
+                st.dataframe(outliers)  # Affiche les valeurs aberrantes sous forme de tableau
+            else:
+                st.success("Aucune valeur aberrante détectée.")
+
+            # Visualisations
+            st.subheader("Visualisations")
+            if st.checkbox("Afficher le Boxplot"):
+                fig, ax = plt.subplots()
+                sns.boxplot(y=data[selected_col], ax=ax)
+                st.pyplot(fig)
+
+        if st.checkbox("Afficher l'Histogramme"):
+            fig, ax = plt.subplots()
+            sns.histplot(data[selected_col], kde=True, bins=10, color='skyblue', edgecolor='black', ax=ax)
+            ax.set_title(f"Histogramme de {selected_col}")
+            st.pyplot(fig)
+
+    # === Partie 4 : Analyse entre Attributs ===
+    if "data" in st.session_state:
+        st.header("4. Analyse entre Attributs")
+
+        # Sélectionner deux colonnes pour analyser les corrélations
+        st.subheader("Corrélations entre deux attributs")
+        col1 = st.selectbox("Choisir la première colonne", data.select_dtypes(include=[float, int]).columns, key="col1")
+        col2 = st.selectbox("Choisir la deuxième colonne", data.select_dtypes(include=[float, int]).columns, key="col2")
+        if col1 == col2:
+            st.error("Erreur : Colonnes identiques, veuillez choisir 2 colonnes différentes")
+        else :
+            if st.button("Afficher le Scatter Plot"):
+                fig, ax = plt.subplots()
+                sns.scatterplot(x=data[col1], y=data[col2], ax=ax)
+                ax.set_title(f"Corrélation entre {col1} et {col2}")
+                st.pyplot(fig)
+
+# Lancer l'application
+if __name__ == "__main__":
+    main()

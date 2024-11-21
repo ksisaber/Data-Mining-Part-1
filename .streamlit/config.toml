@@ -1,0 +1,4 @@
+[server]
+maxUploadSize = 1024  # Limite en Mo
+maxMessageSize = 1024  # En Mo (par exemple, 1 Go ici)
+
