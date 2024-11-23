@@ -21,8 +21,6 @@ def load_data(uploaded_file):
 def main():
     # Titre principal
     st.title("Projet Data Mining")
-    st.sidebar.title("Navigation")
-
     # Initialisation de l'historique des données
     if "data_history" not in st.session_state:
         st.session_state["data_history"] = []
@@ -147,6 +145,53 @@ def main():
             with col4:
                 st.metric(label="Symétrie", value="Oui" if symetric else "Non")
 
+                
+            st.markdown("### **Mesures de Dispersion et Outliers**")
+
+            # Calcul des quantiles et des bornes
+            q, lower, upper, quantile_att = quantiles(data, selected_col)
+
+            # Vérification et formatage des quantiles si c'est une liste ou une série
+            if isinstance(q, (pd.Series, list, np.ndarray)):
+                q_formatted = ", ".join([f"{val:.2f}" for val in q])
+            else:
+                q_formatted = f"{q:.2f}"
+
+            # Création d'un tableau pour les quantiles
+            quantile_table = pd.DataFrame(
+                {
+                    "Quantile": ["Min", "1er Quartile", "Médiane", "3e Quartile", "Max"],
+                    "Valeur": [f"{val:.2f}" for val in q]
+                }
+            )
+
+            # Affichage du tableau des quantiles
+            st.markdown("#### **Tableau des Quantiles**")
+            st.table(quantile_table)
+
+            # Affichage stylisé des quantiles et bornes
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="Borne Inférieure", value=f"{lower:.2f}")
+            with col2:
+                st.metric(label="Borne Supérieure", value=f"{upper:.2f}")
+
+            # Affichage des valeurs aberrantes
+            st.markdown("#### **Valeurs Aberrantes**")
+            outliers = quantile_att
+
+            if not outliers.empty:
+                st.dataframe(outliers)  # Affiche les valeurs aberrantes sous forme de tableau
+            else:
+                st.success("Aucune valeur aberrante détectée.")
+
+        # Visualisations
+        st.subheader("Visualisations")
+        if st.checkbox("Afficher le Boxplot"):
+            fig, ax = plt.subplots()
+            sns.boxplot(y=data[selected_col], ax=ax)
+            st.pyplot(fig)
+            
         if st.checkbox("Afficher l'Histogramme"):
             fig, ax = plt.subplots()
             sns.histplot(data[selected_col], kde=True, bins=10, color='skyblue', edgecolor='black', ax=ax)

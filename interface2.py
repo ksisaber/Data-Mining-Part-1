@@ -81,6 +81,7 @@ def main():
                 st.dataframe(normalized_data.head(500))
 
         # === Discrétisation ===
+        # === Discrétisation ===
         if st.checkbox("Discrétisation des données"):
             st.markdown("### Discrétisation")
             disc_method = st.radio("Méthode de discrétisation", ["equal_frequency", "equal_width"])
@@ -91,7 +92,8 @@ def main():
                 discretized_data = discretization(data, cols=selected_cols, num_bins=num_bins, method=disc_method)
                 st.session_state["data_history"].append(discretized_data)  # Ajouter la nouvelle version
                 st.success("Discrétisation appliquée.")
-                st.dataframe(discretized_data.head(500))
+                st.dataframe(discretized_data[[f"{col}_bins" for col in selected_cols]].head(500))
+
 
         # === Réduction des redondances ===
         if st.checkbox("Réduction des Redondances"):
@@ -100,7 +102,7 @@ def main():
 
             if st.button("Appliquer la réduction des redondances"):
                 reduced_data = eliminate_redundancies(data, method=red_method)
-                st.session_state["data_history"].append(reduced_data)  # Ajouter la nouvelle version
+                st.session_state["data_history"].append(reduced_data)
                 st.success("Réduction des redondances appliquée.")
                 st.dataframe(reduced_data.head(100))
 
