@@ -23,6 +23,10 @@ def main():
     st.title("Projet Data Mining")
     st.sidebar.title("Navigation")
 
+    # Initialisation de l'historique des données
+    if "data_history" not in st.session_state:
+        st.session_state["data_history"] = []
+
     # === Partie 1 : Importation et manipulation des données ===
     st.header("1. Importation et Manipulation des Données")
 
@@ -31,16 +35,30 @@ def main():
 
     # Charger les données une seule fois dans `st.session_state`
     if uploaded_file:
-        if "data" not in st.session_state:
-            st.session_state["data"] = load_data(uploaded_file)
+        if not st.session_state["data_history"]:
+            data = load_data(uploaded_file)
+            st.session_state["data_history"].append(data)
             st.success("Données chargées avec succès.")
 
-    # Vérifier si les données sont dans `session_state`
-    if "data" in st.session_state:
-        data = st.session_state["data"]
+    # Vérifier si des données sont disponibles dans `session_state`
+    if st.session_state["data_history"]:
+
+        data = st.session_state["data_history"][-1]
 
         st.subheader("Aperçu des Données")
-        st.dataframe(data.head(100))  # Limitation de l'affichage à 100 lignes
+        st.dataframe(data.head(100))
+
+        # Ajouter un compteur pour forcer le rafraîchissement
+        if "rerun_counter" not in st.session_state:
+            st.session_state["rerun_counter"] = 0
+
+        # Bouton pour annuler la dernière opération
+        if len(st.session_state["data_history"]) >= 1:
+            if st.button("Annuler la dernière opération"):
+                st.session_state["data_history"].pop()
+                st.session_state["rerun_counter"] += 1
+                st.experimental_set_query_params(rerun=st.session_state["rerun_counter"])
+
 
         # Bouton pour sauvegarder les données modifiées
         if st.button("Télécharger les données actuelles"):
@@ -61,18 +79,18 @@ def main():
             new_value = st.text_input("Nouvelle valeur")
             if st.button("Appliquer la modification"):
                 data.at[row_idx, col_name] = new_value
-                st.session_state["data"] = data  # Mettre à jour les données dans session_state
+                st.session_state["data_history"].append(data.copy())
                 st.success("Modification appliquée.")
                 st.dataframe(data.head(100))
         elif action == "Supprimer":
             if st.button("Supprimer la ligne"):
                 data = data.drop(index=row_idx).reset_index(drop=True)
-                st.session_state["data"] = data  # Mettre à jour les données
+                st.session_state["data_history"].append(data.copy())
                 st.success("Ligne supprimée.")
                 st.dataframe(data.head(100))
 
     # === Partie 2 : Description globale ===
-    if "data" in st.session_state:
+    if st.session_state["data_history"]:
         st.header("2. Description Globale du Dataset")
 
         st.write(f"**Dimensions**: {data.shape[0]} lignes, {data.shape[1]} colonnes")
@@ -84,7 +102,7 @@ def main():
         st.write(data.nunique())
 
     # === Partie 3 : Analyse des Attributs ===
-    if "data" in st.session_state:
+    if st.session_state["data_history"]:
         st.header("3. Analyse des Attributs")
 
         # Sélectionner une colonne pour l'analyse
@@ -129,52 +147,6 @@ def main():
             with col4:
                 st.metric(label="Symétrie", value="Oui" if symetric else "Non")
 
-            st.markdown("### **Mesures de Dispersion et Outliers**")
-
-            # Calcul des quantiles et des bornes
-            q, lower, upper, quantile_att = quantiles(data, selected_col)
-
-            # Vérification et formatage des quantiles si c'est une liste ou une série
-            if isinstance(q, (pd.Series, list, np.ndarray)):
-                q_formatted = ", ".join([f"{val:.2f}" for val in q])
-            else:
-                q_formatted = f"{q:.2f}"
-
-            # Création d'un tableau pour les quantiles
-            quantile_table = pd.DataFrame(
-                {
-                    "Quantile": ["Min", "1er Quartile", "Médiane", "3e Quartile", "Max"],
-                    "Valeur": [f"{val:.2f}" for val in q]
-                }
-            )
-
-            # Affichage du tableau des quantiles
-            st.markdown("#### **Tableau des Quantiles**")
-            st.table(quantile_table)
-
-            # Affichage stylisé des quantiles et bornes
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="Borne Inférieure", value=f"{lower:.2f}")
-            with col2:
-                st.metric(label="Borne Supérieure", value=f"{upper:.2f}")
-
-            # Affichage des valeurs aberrantes
-            st.markdown("#### **Valeurs Aberrantes**")
-            outliers = quantile_att
-
-            if not outliers.empty:
-                st.dataframe(outliers)  # Affiche les valeurs aberrantes sous forme de tableau
-            else:
-                st.success("Aucune valeur aberrante détectée.")
-
-            # Visualisations
-            st.subheader("Visualisations")
-            if st.checkbox("Afficher le Boxplot"):
-                fig, ax = plt.subplots()
-                sns.boxplot(y=data[selected_col], ax=ax)
-                st.pyplot(fig)
-
         if st.checkbox("Afficher l'Histogramme"):
             fig, ax = plt.subplots()
             sns.histplot(data[selected_col], kde=True, bins=10, color='skyblue', edgecolor='black', ax=ax)
@@ -182,7 +154,7 @@ def main():
             st.pyplot(fig)
 
     # === Partie 4 : Analyse entre Attributs ===
-    if "data" in st.session_state:
+    if st.session_state["data_history"]:
         st.header("4. Analyse entre Attributs")
 
         # Sélectionner deux colonnes pour analyser les corrélations
@@ -191,7 +163,7 @@ def main():
         col2 = st.selectbox("Choisir la deuxième colonne", data.select_dtypes(include=[float, int]).columns, key="col2")
         if col1 == col2:
             st.error("Erreur : Colonnes identiques, veuillez choisir 2 colonnes différentes")
-        else :
+        else:
             if st.button("Afficher le Scatter Plot"):
                 fig, ax = plt.subplots()
                 sns.scatterplot(x=data[col1], y=data[col2], ax=ax)

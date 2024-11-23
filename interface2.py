@@ -27,46 +27,60 @@ def main():
     # Chargement des données
     uploaded_file = st.file_uploader("Importer le fichier", type=["csv"])
     if uploaded_file:
-        if "data" not in st.session_state:
-            st.session_state["data"] = load_data(uploaded_file)
+        if "data_history" not in st.session_state:
+            st.session_state["data_history"] = []  # Historique des versions des données
+            data = load_data(uploaded_file)
+            st.session_state["data_history"].append(data)  # Ajouter la version initiale
             st.success("Données chargées avec succès.")
 
-    # Utilisation des données depuis `session_state`
-    if "data" in st.session_state:
-        data = st.session_state["data"]
+    # Vérification des données dans l'historique
+    if "data_history" in st.session_state and st.session_state["data_history"]:
+        data = st.session_state["data_history"][-1]  # Dernière version des données
         st.write(f"**Dimensions des données :** {data.shape[0]} lignes, {data.shape[1]} colonnes")
-        st.dataframe(data.head(100))  # Afficher un aperçu limité
+        st.dataframe(data.head(500))  # Afficher un aperçu limité
 
-        # Agrégation par saisons
+        # === Annuler la dernière opération ===
+        if st.button("Annuler la dernière opération"):
+            if len(st.session_state["data_history"]) > 1:
+                st.session_state["data_history"].pop()  # Supprime la dernière version
+                st.success("Dernière opération annulée.")
+            else:
+                st.warning("Aucune opération à annuler.")
+
+        # === Agrégation par saisons ===
         if st.checkbox("Réduction des données par agrégation saisonnière"):
-            if "season_data" not in st.session_state:
-                st.session_state["season_data"] = aggregate_by_season(data)
-            st.write("Données agrégées par saisons :")
-            st.dataframe(st.session_state["season_data"].head(100))
+            if st.button("Appliquer l'agrégation par saisons"):
+                aggregated_data = aggregate_by_season(data)
+                st.session_state["data_history"].append(aggregated_data)  # Ajouter la nouvelle version
+                st.success("Agrégation par saisons appliquée.")
+                st.write(f"**Dimensions après agrégation :** {aggregated_data.shape[0]} lignes, {aggregated_data.shape[1]} colonnes")
+                st.dataframe(aggregated_data.head(500))
 
-        # Gestion des valeurs aberrantes
+        # === Gestion des valeurs aberrantes ===
         if st.checkbox("Gestion des Outliers et des Valeurs Manquantes"):
             st.markdown("### Gestion des Outliers")
             outlier_method = st.selectbox("Méthode pour traiter les outliers", ["zscore", "IQR", "Clipping", "log"])
             selected_cols = st.multiselect("Colonnes à traiter", data.select_dtypes(include=[float, int]).columns)
 
             if st.button("Appliquer la gestion des outliers"):
-                st.session_state["data"] = outlier(data, method=outlier_method, cols=selected_cols)
+                outlier_data = outlier(data, method=outlier_method, cols=selected_cols)
+                st.session_state["data_history"].append(outlier_data)  # Ajouter la nouvelle version
                 st.success("Gestion des outliers appliquée.")
-                st.dataframe(st.session_state["data"].head(100))
+                st.dataframe(outlier_data.head(500))
 
-        # Normalisation
+        # === Normalisation ===
         if st.checkbox("Normalisation des données"):
             st.markdown("### Normalisation")
             norm_method = st.radio("Méthode de normalisation", ["minmax", "zscore"])
             selected_cols = st.multiselect("Colonnes à normaliser", data.select_dtypes(include=[float, int]).columns)
 
             if st.button("Appliquer la normalisation"):
-                st.session_state["data"] = normalize_data(data, method=norm_method, cols=selected_cols)
+                normalized_data = normalize_data(data, method=norm_method, cols=selected_cols)
+                st.session_state["data_history"].append(normalized_data)  # Ajouter la nouvelle version
                 st.success("Normalisation appliquée.")
-                st.dataframe(st.session_state["data"].head(100))
+                st.dataframe(normalized_data.head(500))
 
-        # Discrétisation
+        # === Discrétisation ===
         if st.checkbox("Discrétisation des données"):
             st.markdown("### Discrétisation")
             disc_method = st.radio("Méthode de discrétisation", ["equal_frequency", "equal_width"])
@@ -74,25 +88,27 @@ def main():
             selected_cols = st.multiselect("Colonnes à discrétiser", data.select_dtypes(include=[float, int]).columns)
 
             if st.button("Appliquer la discrétisation"):
-                st.session_state["data"] = discretization(data, cols=selected_cols, num_bins=num_bins, method=disc_method)
+                discretized_data = discretization(data, cols=selected_cols, num_bins=num_bins, method=disc_method)
+                st.session_state["data_history"].append(discretized_data)  # Ajouter la nouvelle version
                 st.success("Discrétisation appliquée.")
-                st.dataframe(st.session_state["data"].head(100))
+                st.dataframe(discretized_data.head(500))
 
-        # Réduction des redondances
+        # === Réduction des redondances ===
         if st.checkbox("Réduction des Redondances"):
             st.markdown("### Réduction des Redondances")
             red_method = st.radio("Méthode", ["horizontal", "vertical"])
 
-            if st.button("Appliquer la réduction"):
-                st.session_state["data"] = eliminate_redundancies(data, method=red_method)
+            if st.button("Appliquer la réduction des redondances"):
+                reduced_data = eliminate_redundancies(data, method=red_method)
+                st.session_state["data_history"].append(reduced_data)  # Ajouter la nouvelle version
                 st.success("Réduction des redondances appliquée.")
-                st.dataframe(st.session_state["data"].head(100))
+                st.dataframe(reduced_data.head(100))
 
         # Téléchargement des données traitées
         if st.button("Télécharger les données traitées"):
             st.download_button(
                 label="Télécharger CSV",
-                data=st.session_state["data"].to_csv(index=False).encode("utf-8"),
+                data=data.to_csv(index=False).encode("utf-8"),
                 file_name="data_preprocessed.csv",
                 mime="text/csv",
             )

@@ -121,39 +121,55 @@ def normalize_data(df, method, cols=None):
         raise ValueError("Method should be 'minmax' or 'zscore'.")
 
 
+import pandas as pd
+import numpy as np
+
 def discretization(df, cols, num_bins, method='equal_frequency', label_by_avg=False):
+    """
+    Discrétise les colonnes spécifiées d'un DataFrame en utilisant des intervalles explicites.
+
+    Args:
+        df (pd.DataFrame): DataFrame d'entrée.
+        cols (list): Liste des colonnes à discrétiser.
+        num_bins (int): Nombre de bins.
+        method (str): Méthode de discrétisation ('equal_frequency' ou 'equal_width').
+        label_by_avg (bool): Si True, étiqueter les bins par leur moyenne, sinon afficher les intervalles explicites.
+
+    Returns:
+        pd.DataFrame: DataFrame avec des colonnes discrétisées.
+    """
     df_out = df.copy()
 
     for col in cols:
         if method == 'equal_frequency':
+            # Méthode des fréquences égales
+            bin_edges = pd.qcut(df_out[col], num_bins, retbins=True, duplicates='drop')[1]  # Obtenir les bornes des bins
             if label_by_avg:
-                bin_edges = pd.qcut(df_out[col], num_bins, retbins=True)[1]
-                bin_averages = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(len(bin_edges) - 1)]
-                labels = bin_averages
+                # Etiquettes basées sur la moyenne des intervalles
+                labels = [(bin_edges[i] + bin_edges[i + 1]) / 2 for i in range(len(bin_edges) - 1)]
             else:
-                
-                labels = [f'cat {i+1}' for i in range(num_bins)]
-            df_out[f'{col}_EFD'] = pd.qcut(df_out[col], num_bins, labels=labels)
+                # Etiquettes explicites des intervalles
+                labels = [f"[{bin_edges[i]:.2f} - {bin_edges[i + 1]:.2f}]" for i in range(len(bin_edges) - 1)]
+            df_out[f'{col}_EFD'] = pd.qcut(df_out[col], num_bins, labels=labels, duplicates='drop')
 
         elif method == 'equal_width':
+            # Méthode des largeurs égales
             min_val = df_out[col].min()
             max_val = df_out[col].max()
-            bin_edges = np.linspace(min_val, max_val, num_bins+1)  
-            
+            bin_edges = np.linspace(min_val, max_val, num_bins + 1)  # Calculer les bornes des bins
             if label_by_avg:
-                
-                bin_averages = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(len(bin_edges) - 1)]
-                labels = bin_averages
+                # Etiquettes basées sur la moyenne des intervalles
+                labels = [(bin_edges[i] + bin_edges[i + 1]) / 2 for i in range(len(bin_edges) - 1)]
             else:
-                # Default behavior: use labels like 'Bin 1', 'Bin 2', etc.
-                labels = [f'Bin {i+1}' for i in range(num_bins)]
-            
+                # Etiquettes explicites des intervalles
+                labels = [f"[{bin_edges[i]:.2f} - {bin_edges[i + 1]:.2f}]" for i in range(len(bin_edges) - 1)]
             df_out[f'{col}_EWD'] = pd.cut(df_out[col], bins=bin_edges, labels=labels, include_lowest=True)
 
         else:
             raise ValueError("Method must be 'equal_frequency' or 'equal_width'")
 
     return df_out
+
 
 
 def eliminate_redundancies(df, method):
