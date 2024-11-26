@@ -70,74 +70,74 @@ def main():
 
         # Modification/Suppression d'instances
         st.subheader("Modifier ou Supprimer des Instances")
+        if st.checkbox("Modifier/Supprimer des instances"):
+            row_idx = st.number_input("Indice de la ligne à modifier/supprimer", min_value=0, max_value=len(data) - 1, step=1)
+            choix = st.selectbox("Choisir le traitement : Ligne ou Colonne", ["Ligne", "Colonne"])
 
-        row_idx = st.number_input("Indice de la ligne à modifier/supprimer", min_value=0, max_value=len(data) - 1, step=1)
-        choix = st.selectbox("Choisir le traitement : Ligne ou Colonne", ["Ligne", "Colonne"])
+            if choix == "Ligne":
+                action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_ligne")
 
-        if choix == "Ligne":
-            action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_ligne")
+                if action == "Modifier":
+                    col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier")
+                    new_value = st.text_input("Nouvelle valeur")
+                    if st.button("Appliquer la modification"):
+                        data.at[row_idx, col_name] = new_value
+                        st.session_state["data_history"].append(data.copy())
+                        st.success(f"Valeur modifiée dans la colonne '{col_name}' à l'indice {row_idx}.")
+                        st.dataframe(data.head(100))
+                elif action == "Supprimer":
+                    if st.button("Supprimer la ligne"):
+                        data = data.drop(index=row_idx).reset_index(drop=True)
+                        st.session_state["data_history"].append(data.copy())
+                        st.success(f"Ligne {row_idx} supprimée.")
+                        st.dataframe(data.head(100))
 
-            if action == "Modifier":
-                col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier")
-                new_value = st.text_input("Nouvelle valeur")
-                if st.button("Appliquer la modification"):
-                    data.at[row_idx, col_name] = new_value
-                    st.session_state["data_history"].append(data.copy())
-                    st.success(f"Valeur modifiée dans la colonne '{col_name}' à l'indice {row_idx}.")
-                    st.dataframe(data.head(100))
-            elif action == "Supprimer":
-                if st.button("Supprimer la ligne"):
-                    data = data.drop(index=row_idx).reset_index(drop=True)
-                    st.session_state["data_history"].append(data.copy())
-                    st.success(f"Ligne {row_idx} supprimée.")
-                    st.dataframe(data.head(100))
+            elif choix == "Colonne":
+                action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_colonne")
 
-        elif choix == "Colonne":
-            action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_colonne")
+                if action == "Modifier":
+                    col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier_colonne")
+                    new_col_name = st.text_input("Nouveau nom pour la colonne", key="new_col_name")
+                    if st.button("Appliquer le nouveau nom"):
+                        data = data.rename(columns={col_name: new_col_name})
+                        st.session_state["data_history"].append(data.copy())
+                        st.success(f"La colonne '{col_name}' a été renommée en '{new_col_name}'.")
+                        st.dataframe(data.head(100))
 
-            if action == "Modifier":
-                col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier_colonne")
-                new_col_name = st.text_input("Nouveau nom pour la colonne", key="new_col_name")
-                if st.button("Appliquer le nouveau nom"):
-                    data = data.rename(columns={col_name: new_col_name})
-                    st.session_state["data_history"].append(data.copy())
-                    st.success(f"La colonne '{col_name}' a été renommée en '{new_col_name}'.")
-                    st.dataframe(data.head(100))
-
-            elif action == "Supprimer":
-                col_name = st.selectbox("Choisir une colonne à supprimer", data.columns, key="col_name_supprimer")
-                if st.button("Supprimer la colonne"):
-                    data = data.drop(columns=[col_name]).reset_index(drop=True)
-                    st.session_state["data_history"].append(data.copy())
-                    st.success(f"Colonne '{col_name}' supprimée.")
-                    st.dataframe(data.head(100))
+                elif action == "Supprimer":
+                    col_name = st.selectbox("Choisir une colonne à supprimer", data.columns, key="col_name_supprimer")
+                    if st.button("Supprimer la colonne"):
+                        data = data.drop(columns=[col_name]).reset_index(drop=True)
+                        st.session_state["data_history"].append(data.copy())
+                        st.success(f"Colonne '{col_name}' supprimée.")
+                        st.dataframe(data.head(100))
 
 
 
     # === Partie 2 : Description globale ===
     if st.session_state["data_history"]:
         st.header("2. Description Globale du Dataset")
-
-        st.write(f"**Dimensions**: {data.shape[0]} lignes, {data.shape[1]} colonnes")
-        st.subheader("Statistiques Descriptives")
-        st.write(data.describe())
-        
-        st.subheader("Valeurs Manquantes")
-        missing_values = data.isnull().sum()
-        st.write("Nombre de valeurs manquantes par colonne :")
-        st.dataframe(missing_values[missing_values >= 0])
-        
-        st.subheader("Valeurs Uniques")
-        unique_values = data.nunique()
-        st.write("Nombre de valeurs uniques par colonne :")
-        st.dataframe(unique_values)
+        if st.checkbox("Afficher la description globale du dataset"):
+            st.write(f"**Dimensions**: {data.shape[0]} lignes, {data.shape[1]} colonnes")
+            st.subheader("Statistiques Descriptives")
+            st.write(data.describe())
+            
+            st.subheader("Valeurs Manquantes")
+            missing_values = data.isnull().sum()
+            st.write("Nombre de valeurs manquantes par colonne :")
+            st.dataframe(missing_values[missing_values >= 0])
+            
+            st.subheader("Valeurs Uniques")
+            unique_values = data.nunique()
+            st.write("Nombre de valeurs uniques par colonne :")
+            st.dataframe(unique_values)
 
 
 
     # === Partie 3 : Analyse des Attributs ===
     if st.session_state["data_history"]:
         st.header("3. Analyse des Attributs")
-
+        
         selected_col = st.selectbox("Choisir une colonne numérique pour l'analyse", data.select_dtypes(include=[float, int]).columns)
 
         # Infos générales
@@ -239,16 +239,17 @@ def main():
 
         # Sélectionner 2 colonnes pour l'analyse
         st.subheader("Corrélations entre deux attributs")
-        col1 = st.selectbox("Choisir la première colonne", data.select_dtypes(include=[float, int]).columns, key="col1")
-        col2 = st.selectbox("Choisir la deuxième colonne", data.select_dtypes(include=[float, int]).columns, key="col2")
-        if col1 == col2:
-            st.error("Erreur : Colonnes identiques, veuillez choisir 2 colonnes différentes")
-        else:
-            if st.button("Afficher le Scatter Plot"):
-                fig, ax = plt.subplots()
-                sns.scatterplot(x=data[col1], y=data[col2], ax=ax)
-                ax.set_title(f"Corrélation entre {col1} et {col2}")
-                st.pyplot(fig)
+        if st.checkbox("Afficher la corrélation entre 2 attributs"):
+            col1 = st.selectbox("Choisir la première colonne", data.select_dtypes(include=[float, int]).columns, key="col1")
+            col2 = st.selectbox("Choisir la deuxième colonne", data.select_dtypes(include=[float, int]).columns, key="col2")
+            if col1 == col2:
+                st.error("Erreur : Colonnes identiques, veuillez choisir 2 colonnes différentes")
+            else:
+                if st.button("Afficher le Scatter Plot"):
+                    fig, ax = plt.subplots()
+                    sns.scatterplot(x=data[col1], y=data[col2], ax=ax)
+                    ax.set_title(f"Corrélation entre {col1} et {col2}")
+                    st.pyplot(fig)
 
 # Lancer l'application
 if __name__ == "__main__":

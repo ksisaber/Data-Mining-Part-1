@@ -46,6 +46,7 @@ def main():
                 st.warning("Aucune opération à annuler.")
 
         # Agrégation par saisons
+        st.header("Réduction des données par aggrégation saisonnière")
         if st.checkbox("Réduction des données par agrégation saisonnière"):
             if st.button("Appliquer l'agrégation par saisons"):
                 aggregated_data = aggregate_by_season(data)
@@ -55,7 +56,8 @@ def main():
                 st.dataframe(aggregated_data.head(500))
 
         # Gestion des valeurs aberrantes
-        if st.checkbox("Gestion des Outliers et des Valeurs Manquantes"):
+        st.header("Gestion des Outliers")
+        if st.checkbox("Gestion des Outliers"):
             st.markdown("### Gestion des Outliers")
             outlier_method = st.selectbox("Méthode pour traiter les outliers", ["zscore", "IQR", "Clipping", "log"])
             selected_cols = st.multiselect("Colonnes à traiter", data.select_dtypes(include=[float, int]).columns)
@@ -67,6 +69,7 @@ def main():
                 st.dataframe(outlier_data.head(500))
 
         # Gestion des valeurs manquantes
+        st.header("Gestion des valeurs manquantes")
         if st.checkbox("Gestion des Valeurs Manquantes"):
             st.markdown("### Gestion des Valeurs Manquantes")
             missing_option = st.selectbox(
@@ -133,8 +136,8 @@ def main():
             # Affichage du dataframe mis à jour
             st.dataframe(updated_data.head(500))
 
-
         # Normalisation
+        st.header("Normalisation des données")
         if st.checkbox("Normalisation des données"):
             st.markdown("### Normalisation")
             norm_method = st.radio("Méthode de normalisation", ["minmax", "zscore"])
@@ -147,6 +150,7 @@ def main():
                 st.dataframe(normalized_data.head(500))
 
         # Discrétisation
+        st.header("Discrétisation des données")
         if st.checkbox("Discrétisation des données"):
             st.markdown("### Discrétisation")
             disc_method = st.radio("Méthode de discrétisation", ["equal_frequency", "equal_width"])
@@ -160,6 +164,7 @@ def main():
                 st.dataframe(discretized_data.head(500))
 
         # Réduction des redondances
+        st.header("Réduction des redondances")
         if st.checkbox("Réduction des Redondances"):
             st.markdown("### Réduction des Redondances")
             red_method = st.radio("Méthode", ["horizontal", "vertical"])
@@ -171,6 +176,7 @@ def main():
                 st.dataframe(reduced_data.head(100))
 
         # Téléchargement des données traitées
+        st.header("Télécharger les données traitées")
         if st.button("Télécharger les données traitées"):
             st.download_button(
                 label="Télécharger CSV",
