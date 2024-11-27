@@ -1,5 +1,10 @@
+from matplotlib import pyplot as plt
 import streamlit as st
 import pandas as pd
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 from part2 import (
     outlier,
     normalize_data,
@@ -184,6 +189,79 @@ def main():
                 file_name="data_preprocessed.csv",
                 mime="text/csv",
             )
+        
+
+        # Vérification si des données sont chargées
+        if st.session_state["data_history"] and not st.session_state["data_history"][-1].empty:
+            # Checkbox pour afficher la carte
+            if st.checkbox("Afficher Carte"):
+                st.header("Carte d'Intensité Basée sur les Propriétés")
+
+                # Récupération des données actuelles
+                map_df = st.session_state["data_history"][-1]
+
+                # Choix du type de propriété
+                prop_type = st.radio("Sélectionner le type de propriété :", ["Propriétés du Sol", "Propriétés Climatiques"])
+
+                # Dropdown pour la sélection de propriété selon le type
+                if prop_type == "Propriétés du Sol":
+                    prop = st.selectbox("Choisir une propriété du sol :", [
+                        "sand % topsoil", "sand % subsoil", "silt % topsoil", "silt % subsoil", "clay % topsoil", 
+                        "clay % subsoil", "pH water topsoil", "pH water subsoil", "OC % topsoil", "OC % subsoil", 
+                        "N % topsoil", "N % subsoil", "BS % topsoil", "BS % subsoil", "CEC topsoil", "CEC subsoil", 
+                        "CEC clay topsoil", "CEC Clay subsoil", "CaCO3 % topsoil", "CaCO3 % subsoil", "BD topsoil", 
+                        "BD subsoil", "C/N topsoil", "C/N subsoil"
+                    ])
+                else:
+                    prop = st.selectbox("Choisir une propriété climatique :", ["Rainf", "Tair", "Wind", "Qair", "Snowf", "PSurf"])
+
+                # Sélection de la saison
+                season_prop = st.selectbox("Choisir une saison :", ["Spring", "Summer", "Autumn", "Winter"])
+
+                # Sélection de la palette de couleurs
+                color_palette = st.selectbox(
+                    "Choisir une palette de couleurs :",
+                    ["Reds", "Blues", "Greens"]
+                )
+
+                # Extraction des latitudes, longitudes et intensité en fonction de la propriété sélectionnée
+                try:
+                    lats = map_df["lat"].values  # Coordonnées de latitude
+                    longs = map_df["lon"].values  # Coordonnées de longitude
+                    intensity = map_df[f"{prop}_{season_prop}" if prop_type == "Propriétés Climatiques" else prop].values
+
+                    # Création de la carte avec Cartopy
+                    fig, ax = plt.subplots(figsize=(8, 8))
+                    ax = plt.axes(projection=ccrs.PlateCarree())
+                    ax.set_extent([-10, 12, 18, 38])  # Délimitation pour l'Algérie
+
+                    # Ajout des éléments de la carte
+                    ax.add_feature(cfeature.COASTLINE)
+                    ax.add_feature(cfeature.BORDERS, linestyle=':')
+                    ax.add_feature(cfeature.LAKES, alpha=0.4)
+
+                    # Normalisation des valeurs pour la palette
+                    norm = Normalize(vmin=min(intensity), vmax=max(intensity))
+                    cmap = plt.get_cmap(color_palette)
+
+                    # Tracer les points d'intensité
+                    scatter = ax.scatter(
+                        longs, lats, c=intensity, cmap=cmap, norm=norm, s=30, alpha=0.8, edgecolor='none'
+                    )
+
+                    # Barre de couleur pour représenter l'intensité
+                    cbar = plt.colorbar(ScalarMappable(norm=norm, cmap=cmap), ax=ax, orientation="vertical", label="Intensité")
+
+                    # Titre de la carte
+                    plt.title(f"Carte d'Intensité de {prop} en Algérie ({season_prop})")
+
+                    # Afficher la carte dans Streamlit
+                    st.pyplot(fig)
+
+                except KeyError:
+                    st.error("Les colonnes nécessaires (lat, lon, ou propriétés) ne sont pas présentes dans le dataset.")
+
+
 
 # Lancer l'application
 if __name__ == "__main__":

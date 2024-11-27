@@ -71,46 +71,62 @@ def main():
         # Modification/Suppression d'instances
         st.subheader("Modifier ou Supprimer des Instances")
         if st.checkbox("Modifier/Supprimer des instances"):
-            row_idx = st.number_input("Indice de la ligne à modifier/supprimer", min_value=0, max_value=len(data) - 1, step=1)
+
             choix = st.selectbox("Choisir le traitement : Ligne ou Colonne", ["Ligne", "Colonne"])
 
             if choix == "Ligne":
                 action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_ligne")
 
                 if action == "Modifier":
+                    selected_rows = st.multiselect("Choisir les indices des lignes à modifier", options=data.index.tolist())
                     col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier")
                     new_value = st.text_input("Nouvelle valeur")
+
                     if st.button("Appliquer la modification"):
-                        data.at[row_idx, col_name] = new_value
+                        for row_idx in selected_rows:
+                            data.at[row_idx, col_name] = new_value
                         st.session_state["data_history"].append(data.copy())
-                        st.success(f"Valeur modifiée dans la colonne '{col_name}' à l'indice {row_idx}.")
+                        st.success(f"Valeurs modifiées dans la colonne '{col_name}' pour les indices {selected_rows}.")
                         st.dataframe(data.head(100))
+
                 elif action == "Supprimer":
-                    if st.button("Supprimer la ligne"):
-                        data = data.drop(index=row_idx).reset_index(drop=True)
+                    selected_rows = st.multiselect("Choisir les indices des lignes à supprimer", options=data.index.tolist())
+
+                    if st.button("Supprimer les lignes"):
+                        data = data.drop(index=selected_rows).reset_index(drop=True)
                         st.session_state["data_history"].append(data.copy())
-                        st.success(f"Ligne {row_idx} supprimée.")
+                        st.success(f"Lignes {selected_rows} supprimées.")
                         st.dataframe(data.head(100))
 
             elif choix == "Colonne":
                 action = st.selectbox("Action", ["Modifier", "Supprimer"], key="action_colonne")
 
                 if action == "Modifier":
-                    col_name = st.selectbox("Choisir une colonne à modifier", data.columns, key="col_name_modifier_colonne")
-                    new_col_name = st.text_input("Nouveau nom pour la colonne", key="new_col_name")
-                    if st.button("Appliquer le nouveau nom"):
-                        data = data.rename(columns={col_name: new_col_name})
-                        st.session_state["data_history"].append(data.copy())
-                        st.success(f"La colonne '{col_name}' a été renommée en '{new_col_name}'.")
-                        st.dataframe(data.head(100))
+                    selected_cols = st.multiselect("Choisir les colonnes à modifier", options=data.columns.tolist(), key="col_name_modifier_colonne")
+                    new_col_names = st.text_area(
+                        "Nouveaux noms(séparateur :)",
+                        placeholder="Exemple : col1, col2, col3 ,..."
+                    )
+
+                    if st.button("Appliquer les nouveaux noms"):
+                        new_col_names = [name.strip() for name in new_col_names.split(",")]
+                        if len(selected_cols) == len(new_col_names):
+                            data = data.rename(columns=dict(zip(selected_cols, new_col_names)))
+                            st.session_state["data_history"].append(data.copy())
+                            st.success(f"Colonnes renommées avec succès : {dict(zip(selected_cols, new_col_names))}.")
+                            st.dataframe(data.head(100))
+                        else:
+                            st.error("Le nombre de nouveaux noms ne correspond pas au nombre de colonnes sélectionnées.")
 
                 elif action == "Supprimer":
-                    col_name = st.selectbox("Choisir une colonne à supprimer", data.columns, key="col_name_supprimer")
-                    if st.button("Supprimer la colonne"):
-                        data = data.drop(columns=[col_name]).reset_index(drop=True)
+                    selected_cols = st.multiselect("Choisir les colonnes à supprimer", options=data.columns.tolist(), key="col_name_supprimer")
+
+                    if st.button("Supprimer les colonnes"):
+                        data = data.drop(columns=selected_cols).reset_index(drop=True)
                         st.session_state["data_history"].append(data.copy())
-                        st.success(f"Colonne '{col_name}' supprimée.")
+                        st.success(f"Colonnes supprimées : {selected_cols}.")
                         st.dataframe(data.head(100))
+
 
 
 
